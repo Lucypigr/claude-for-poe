@@ -1,5 +1,7 @@
 # CLAUDE.md
 
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
 ## 專案狀態
 - 目前僅有 `README.md`，尚無程式碼、建置或測試流程。新增後請在此補充指令。
 
