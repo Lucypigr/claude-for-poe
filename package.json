@@ -1,0 +1,22 @@
+{
+  "name": "claude-for-poe",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "Original 2.5D Web ARPG built with Three.js and Vite.",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=20.19"
+  },
+  "dependencies": {
+    "three": "^0.186.1"
+  },
+  "devDependencies": {
+    "vite": "^8.3.1"
+  }
+}
