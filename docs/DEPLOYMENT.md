@@ -32,7 +32,7 @@
 
 - 每筆 deployment：`https://<commit-hash-前綴>.<project>.pages.dev`，固定指向那次建置。
 - 分支 alias：`https://<branch-alias>.<project>.pages.dev`，永遠指向該分支最新成功的 deployment。alias = 分支名稱轉小寫、非英數字元換成 `-`，並截斷至 28 字元。
-- `feature/bootstrap-threejs-arpg` 依規則推算為 `https://feature-bootstrap-threejs-ar.claude-for-poe.pages.dev`。**這是推算值，尚未確認**；以 Dashboard 或 GitHub check 顯示的實際網址為準，並更新下方紀錄。
+- `feature/bootstrap-threejs-arpg` 的 branch alias 為 `feature-bootstrap-threejs-ar`（已由 Cloudflare Pages check 的 Branch Preview URL 確認，見下方紀錄）。
 
 ## 確認 deployment 成功
 
@@ -45,4 +45,8 @@
 
 - Cloudflare 專案名稱：`claude-for-poe`（Production branch `main`；Preview branches：Custom，Include `*`）
 - Production（`main`）：尚未確認（`main` 尚無 `build:cloudflare`，合併前無法以正確設定建置）
-- `feature/bootstrap-threejs-arpg` 預覽：驗證中（等待 Branch control 變更後的第一筆 preview deployment）
+- `feature/bootstrap-threejs-arpg` 預覽（來源：commit `3b76580` 的 **Cloudflare Pages** check run，Deploy successful）：
+  - Branch Preview URL：https://feature-bootstrap-threejs-ar.claude-for-poe.pages.dev
+  - 該筆 deployment：https://d4241a43.claude-for-poe.pages.dev
+  - 驗證：兩個網址的 `/`、`/assets/index-*.js`、`/assets/index-*.css` 各連續 5 次皆 200；Chromium 桌機 1280×720 與手機 390×664 出現遊戲 canvas、HUD、搖桿與攻擊按鈕，console 無錯誤。
+- 注意：Cloudflare 帳號內另有一個同名 **Workers** 專案（先前誤建）仍連著此 repository，每次 push 都會產生失敗的 `Workers Builds: claude-for-poe` check；與 Pages 預覽無關，可在 Dashboard 刪除該 Worker 或中斷其 Git 連結。
