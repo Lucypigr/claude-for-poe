@@ -9,6 +9,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `npm run dev` — Vite 開發伺服器（`host: true`，同網段手機可連線）
 - `npm run build` / `npm run preview` — 建置 `dist/` 並預覽
 - `npm test` — Node 內建 test runner，執行 `tests/**/*.test.js`；單一檔案：`node --test tests/moveAxis.test.js`
+- 部署：push 到 `main` 觸發 `.github/workflows/deploy-pages.yml`，測試＋建置後發布到 GitHub Pages（https://lucypigr.github.io/claude-for-poe/）。
 - 開發模式下 `window.__game` 提供除錯用的 `game` 與 `debug` 物件（僅 DEV）。
 
 ## 架構
@@ -27,7 +28,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - 技能組核心不變：Active Gem 提供技能；Support Gem 只有在同一裝備、同一連線群組且相容時才生效。裝在同一物品上不等於已連線。相容性必須使用明確規則，不可只依名稱或 tags 推斷。
 - 手機 UI 需為可實際觸控的設計，不是縮小的桌機 UI；UI 觸控不得穿透到 world input。
 - 每個 Part 限定一個可獨立測試與提交的交付目標。
-- 不得直接提交到 main；在功能分支開發，測試通過後才為完成的 Part 建立一個 commit。未經使用者允許不得 push。
+- 不得直接提交到 main；在功能分支開發，測試通過後才為完成的 Part 建立一個 commit。
+- 完成的 Part 推送到功能分支並開 PR 到 `main`，合併後 GitHub Pages 自動更新；除此之外未經使用者允許不得 push。
 - 不複製 POE 原始碼、專有素材、角色、UI、美術、音效或完整文字；使用原創名稱與內容。
 - 問題類任務先研究 codebase 再回答；程式碼風格、命名與註解密度與周圍既有程式碼一致。
 - 不覆蓋或刪除 repository 內既有的有效指示；修改前先檢查目標內容。

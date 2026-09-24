@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite';
 
 export default defineConfig({
+  base: './', // relative asset paths so the build works under GitHub Pages' /<repo>/ path
   server: {
     host: true, // reachable from phones on the same network
   },
