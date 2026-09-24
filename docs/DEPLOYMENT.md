@@ -37,12 +37,12 @@
 ## 確認 deployment 成功
 
 1. Cloudflare Dashboard → 專案 → **Deployments**：該分支最新一筆的 commit hash 等於剛 push 的 HEAD，狀態 **Success**；**View details** 顯示 deployment 網址與 branch alias。
-2. GitHub：該 commit 的 **Cloudflare Pages** check 成功，details 內附預覽網址。
+2. GitHub：該 commit 的 **Cloudflare Pages** check run 成功；其 output summary 列出 deployment 的 Preview URL（preview 部署另有 Branch Preview URL）。公開 repository 可用 `GET /repos/Lucypigr/claude-for-poe/commits/<sha>/check-runs` 讀取。
 3. 開啟 branch alias：首頁 HTTP 200、`/assets/*.js` 與 `/assets/*.css` 為 200、出現遊戲 canvas、console 無錯誤。
 4. Claude Code 雲端環境必須能連到 `*.pages.dev`（在環境設定的 Network access 允許此網域）；否則只能回報無法驗證，不得假設成功。
 
 ## 已確認的網址
 
-- Cloudflare 專案名稱：尚未建立
-- Production（`main`）：尚未確認
-- `feature/bootstrap-threejs-arpg` 預覽：尚未確認
+- Cloudflare 專案名稱：`claude-for-poe`（Production branch `main`；Preview branches：Custom，Include `*`）
+- Production（`main`）：尚未確認（`main` 尚無 `build:cloudflare`，合併前無法以正確設定建置）
+- `feature/bootstrap-threejs-arpg` 預覽：驗證中（等待 Branch control 變更後的第一筆 preview deployment）
