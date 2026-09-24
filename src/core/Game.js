@@ -1,16 +1,19 @@
 import * as THREE from 'three';
 import { InputManager } from '../input/InputManager.js';
 import { KeyboardMoveSource } from '../input/KeyboardMoveSource.js';
+import { KeyboardActionSource } from '../input/KeyboardActionSource.js';
 import { Renderer } from '../render/Renderer.js';
 import { CameraRig } from '../render/CameraRig.js';
 import { World } from '../game/World.js';
 import { Hud } from '../ui/Hud.js';
 import { TouchJoystick } from '../ui/TouchJoystick.js';
+import { AttackButton } from '../ui/AttackButton.js';
+import { PLAYER_ATTACK } from '../config.js';
 
 const MAX_FRAME_DT = 0.1; // avoid huge steps after tab switches
 
 // Composition root and the single game loop.
-// Frame order: input -> world update -> camera -> render.
+// Frame order: input (move + actions) -> world update -> camera -> HUD -> render.
 export class Game {
   constructor({ worldContainer, uiContainer }) {
     this.worldContainer = worldContainer;
@@ -21,10 +24,15 @@ export class Game {
 
     this.keyboard = new KeyboardMoveSource();
     this.input.addMoveSource(this.keyboard);
+    this.keyboardActions = new KeyboardActionSource(
+      this.input,
+      Object.fromEntries(PLAYER_ATTACK.keys.map((code) => [code, 'attack'])),
+    );
 
     this.hud = new Hud(uiContainer);
     this.joystick = new TouchJoystick(uiContainer);
     this.input.addMoveSource(this.joystick);
+    this.attackButton = new AttackButton(uiContainer, this.input);
     this.setTouchMode(detectTouchPrimary());
 
     // Switch UI hints when the player actually uses a different device.
@@ -52,6 +60,7 @@ export class Game {
     if (this.touchMode === touch) return;
     this.touchMode = touch;
     this.joystick.setVisible(touch);
+    this.attackButton.setVisible(touch);
     this.hud.setInputMode(touch ? 'touch' : 'keyboard');
   }
 
@@ -84,9 +93,18 @@ export class Game {
     this.lastTime = timeMs;
 
     this.cameraRig.screenAxisToWorld(this.input.getMoveAxis(), this.moveDir);
-    this.world.player.setMoveDirection(this.moveDir);
+    const player = this.world.player;
+    player.setMoveDirection(this.moveDir);
+    if (this.input.consumeAction('attack')) this.world.playerAttack();
+    this.input.endFrame();
     this.world.update(dt);
-    this.cameraRig.follow(this.world.player.position, dt);
+    this.cameraRig.follow(player.position, dt);
+    this.attackButton.setCooldown(player.attackCooldown / player.attack.interval);
+    this.hud.update(
+      player,
+      this.world.focusEnemy,
+      player.dead ? Math.max(0, player.config.respawnDelay - player.deadTime) : null,
+    );
     this.renderer.render(this.world.scene, this.cameraRig.camera);
   }
 
@@ -98,7 +116,9 @@ export class Game {
     this.offWorldPointer();
     this.input.dispose();
     this.keyboard.dispose();
+    this.keyboardActions.dispose();
     this.joystick.dispose();
+    this.attackButton.dispose();
     this.hud.dispose();
     this.world.dispose();
     this.renderer.dispose();

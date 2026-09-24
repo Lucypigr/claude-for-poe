@@ -1,10 +1,13 @@
 import * as THREE from 'three';
-import { WORLD_CONFIG } from '../config.js';
+import { WORLD_CONFIG, ENEMY_TYPES, ENEMY_SPAWNS, FX_CONFIG } from '../config.js';
 import { Player } from './Player.js';
+import { Enemy } from './Enemy.js';
+import { Effects } from './Effects.js';
+import { nearestFreePoint } from './collision.js';
 
 // The game scene: environment + entities. Rendering and input live elsewhere.
 export class World {
-  constructor(config = WORLD_CONFIG) {
+  constructor(config = WORLD_CONFIG, spawns = ENEMY_SPAWNS) {
     this.config = config;
     this.colliders = []; // static circle colliders {x, z, radius} on the X/Z plane
     this.raycaster = new THREE.Raycaster();
@@ -17,6 +20,56 @@ export class World {
 
     this.player = new Player();
     this.scene.add(this.player.object);
+    this.playerSpawn = { x: 0, z: 0 };
+
+    this.effects = new Effects(this.scene);
+    this.enemies = [];
+    this.focusEnemy = null; // last enemy the player fought, shown in the HUD
+    this.bodyColliders = []; // scratch list: rocks + moving bodies, rebuilt per mover
+    this.spawns = spawns.map((s) => ({ type: ENEMY_TYPES[s.type], x: s.x, z: s.z, enemy: null, timer: 0 }));
+    this.spawns.forEach((spawn) => this.spawnEnemy(spawn));
+  }
+
+  spawnEnemy(spawn) {
+    const bodies = this.collidersFor(null);
+    const at = nearestFreePoint(spawn, spawn.type.radius, bodies, this.config.playBounds);
+    const enemy = new Enemy(spawn.type, at);
+    spawn.enemy = enemy;
+    this.enemies.push(enemy);
+    this.scene.add(enemy.object);
+    return enemy;
+  }
+
+  removeEnemy(enemy) {
+    const i = this.enemies.indexOf(enemy);
+    if (i >= 0) this.enemies.splice(i, 1);
+    if (this.focusEnemy === enemy) this.focusEnemy = null;
+    enemy.dispose();
+  }
+
+  // Static rocks plus every living body except `self`, for circle collision.
+  collidersFor(self) {
+    const list = this.bodyColliders;
+    list.length = 0;
+    for (const c of this.colliders) list.push(c);
+    if (self !== this.player && !this.player.dead) list.push(this.player);
+    for (const e of this.enemies) if (e !== self && !e.dead) list.push(e);
+    return list;
+  }
+
+  // Swing the player's basic attack. Returns Player.tryAttack()'s result.
+  playerAttack() {
+    const player = this.player;
+    const result = player.tryAttack(this.enemies);
+    if (!result) return null;
+    const reach = player.radius + player.attack.range;
+    this.effects.spawnSlash(player.position, player.facing, reach, !!result.target);
+    if (result.target) {
+      this.focusEnemy = result.target;
+      this.effects.spawnSpark(result.target.position, FX_CONFIG.enemyHitColor);
+      if (result.target.dead) this.effects.spawnDeathBurst(result.target.position);
+    }
+    return result;
   }
 
   addLights() {
@@ -91,14 +144,49 @@ export class World {
   }
 
   update(dt) {
-    this.player.update(dt, this.config.playBounds, this.colliders);
+    const bounds = this.config.playBounds;
+    const player = this.player;
+    player.update(dt, bounds, this.collidersFor(player));
+
+    for (const enemy of this.enemies) {
+      const dealt = enemy.update(dt, player, this.collidersFor(enemy), bounds);
+      if (dealt > 0) {
+        this.focusEnemy = enemy;
+        this.effects.spawnSpark(player.position, FX_CONFIG.playerHitColor);
+      }
+    }
+    this.updateSpawns(dt);
+
+    if (player.dead && player.deadTime >= player.config.respawnDelay) {
+      player.revive(nearestFreePoint(this.playerSpawn, player.radius, this.collidersFor(player), bounds));
+    }
+    this.effects.update(dt);
+
     // Keep the shadow frustum centered on the player.
     const p = this.player.position;
     this.sun.position.set(p.x + 8, 16, p.z + 6);
     this.sun.target.position.copy(p);
   }
 
+  // Corpses are removed after corpseTime; the spawn point refills later.
+  updateSpawns(dt) {
+    for (const spawn of this.spawns) {
+      const enemy = spawn.enemy;
+      if (enemy) {
+        if (enemy.dead && enemy.deadTime >= spawn.type.corpseTime) {
+          this.removeEnemy(enemy);
+          spawn.enemy = null;
+          spawn.timer = spawn.type.respawnDelay;
+        }
+      } else if ((spawn.timer -= dt) <= 0) {
+        this.spawnEnemy(spawn);
+      }
+    }
+  }
+
   dispose() {
+    this.effects.dispose();
+    this.enemies.slice().forEach((e) => this.removeEnemy(e));
     const geometries = new Set();
     const materials = new Set();
     this.scene.traverse((obj) => {

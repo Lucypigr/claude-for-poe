@@ -38,3 +38,26 @@
   - 目前只處理 pointerdown，按住拖曳不會持續更新目標。
   - 碰撞體為近似圓形，與低面數石塊外形有少量誤差。
   - 仍未在實體手機上測試。
+
+## Part 02 — 基礎戰鬥垂直切片：玩家攻擊、敵人追擊與生命值
+
+- 分支：`feature/bootstrap-threejs-arpg`（基於 Part 01 `85972cc`）
+- 完成：
+  - 輸入：`InputManager` 新增一次性 action 佇列（`triggerAction` / `consumeAction` / `endFrame`）。`KeyboardActionSource` 把 Space / J 對應到 `attack`（這兩鍵原本未被占用；忽略自動重複，按住不連發）。`AttackButton`（右下角、96px、只在觸控模式顯示）以 Pointer Events 回報 `attack`，事件 `stopPropagation`，與搖桿是不同元素，不會進 world canvas，長按也只觸發一次。`Game.frame` 在 input 階段消費一次攻擊。
+  - 玩家攻擊「橫斬」（`PLAYER_ATTACK`）：`Player.tryAttack()` 以邊緣距離選取射程內最近的存活敵人（`combat.findNearestTarget`），轉向目標並只在此處造成一次傷害；沒有目標時照樣揮擊（有斬擊效果）但不造成傷害；攻擊間隔以遊戲時間 dt 計算。
+  - 敵人「頁岩潛獵者」（`ENEMY_TYPES.shaleStalker`、`Enemy.js`、暫代模型 `enemyModel.js`）：狀態 idle → chase → attack／dead。進入 `aggroRange` 開始追擊，超過 `leashRange` 或玩家死亡時停止；移動重用 `collision.moveCircle`，碰撞體為石塊＋玩家＋其他存活敵人（`World.collidersFor`），被擊退也走同一條路徑；首次接近有 `firstAttackDelay`，之後每 `attackInterval` 命中一次；死亡後不再移動或攻擊。
+  - 生命值：`Health`（玩家、敵人共用）。玩家死亡後無法移動或攻擊，`respawnDelay` 秒後在出生點復活。敵人屍體 `corpseTime` 秒後從 World／scene 移除並釋放 geometry/material，`respawnDelay` 秒後在原出生點重生（`ENEMY_SPAWNS`）。
+  - 回饋（全部由程式生成）：揮擊弧光、命中火花、死亡擴散環（`Effects.js`，每個效果結束時釋放 material）；敵人受擊白閃＋擊退、攻擊前撲；玩家受擊紅閃＋HUD 畫面邊緣紅暈；死亡的敵人倒地、變暗、下沉；玩家死亡時倒下並顯示重生倒數。
+  - HUD：玩家生命條、目前目標（最近交戰的敵人）名稱與生命條、敵人頭上 billboard 生命條、依輸入模式顯示攻擊鍵（`Space / J` 或攻擊按鈕），觸控按鈕顯示冷卻。
+  - 數值集中於 `config.js`：`PLAYER_CONFIG`（maxHealth、hurtFlashTime、respawnDelay）、`PLAYER_ATTACK`、`ENEMY_TYPES`、`ENEMY_SPAWNS`、`FX_CONFIG`。
+- 變更檔案：`src/config.js`、`src/core/Game.js`、`src/input/InputManager.js`、`src/input/KeyboardActionSource.js`（新）、`src/game/Player.js`、`src/game/World.js`、`src/game/Enemy.js`（新）、`src/game/enemyModel.js`（新）、`src/game/Health.js`（新）、`src/game/combat.js`（新）、`src/game/Effects.js`（新）、`src/ui/Hud.js`、`src/ui/AttackButton.js`（新）、`src/styles.css`、`tests/combat.test.js`（新）、`tests/inputActions.test.js`（新）、`docs/PROGRESS.md`
+- 測試：
+  - `npm test`：32 項通過（新增 17 項：Health、最近目標／死亡與射程外排除、只打最近目標且只扣一次、射程外不扣血、30/60/144 FPS 下攻擊間隔一致、敵人追擊並依間隔命中、aggro 外保持 idle、敵人死亡後不動不打、玩家死亡後不動不打且敵人停手、復活、敵人追擊與擊退不穿石塊、按鍵只消費一次、自動重複不觸發、未消費的按壓在幀尾丟棄、action 與 world pointer 互不影響、dispose 移除監聽）。
+  - `npm run build` 通過。
+  - Playwright + Chromium（SwiftShader，dev server，腳本不入庫）45/45：桌機 1280×720：HUD 顯示 Space / J、揮空不扣血但有斬擊效果、Space 只打最近敵人一次並轉向、目標生命條、按住 J 只攻擊一次、間隔內連按無效、擊殺後屍體不動並在 corpseTime 後從 scene 移除、敵人追擊到近戰距離並扣玩家血（紅暈、HUD 同步）、玩家死亡無法移動／攻擊、敵人回到 idle、重生倒數後復活、追擊中的敵人與鍵盤移動的玩家都不會進入石塊、點擊移動時按攻擊鍵不取消目標、點擊到達與鏡頭跟隨、右鍵忽略。iPhone 13 直向 390×664 與橫向 844×390：攻擊按鈕與搖桿都顯示且不重疊、按鈕不擋 HUD、輕觸按鈕命中且 world pointer 計數不變、長按只攻擊一次、搖桿拖曳不觸發攻擊、按住搖桿時第二指按攻擊可觸發且搖桿維持、放開後歸零、輕觸地面移動且不攻擊。三個 viewport 的 console 均無錯誤。
+- 已知問題：
+  - 敵人沒有尋路：玩家躲在石塊正後方時，敵人只會沿石塊邊緣滑動，可能卡住。
+  - 敵人與角色都是程式幾何暫代素材；沒有攻擊動畫骨架，只有簡單的前撲與傾倒。
+  - console 的既有警告：Three.js r186 已移除 `PCFSoftShadowMap`，會自動改用 `PCFShadowMap`（Part 00 的 Renderer 設定，不在本 Part 範圍內）。
+  - 敵人碰撞會把玩家當成障礙物，玩家也會被存活敵人擋住；被包圍時需要攻擊開路。
+  - 仍未在實體手機上測試。
