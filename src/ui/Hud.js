@@ -1,12 +1,15 @@
-import { PLAYER_ATTACK, INVENTORY_CONFIG } from '../config.js';
+import { PLAYER_ATTACK, INVENTORY_CONFIG, GROUND_ITEM_CONFIG } from '../config.js';
+import { getItemDefinition } from '../items/itemDefinitions.js';
+import { PLACE_FAIL } from '../items/Inventory.js';
 
 const HINTS = {
-  keyboard: `WASD / 方向鍵 或 點擊地面 移動 · ${PLAYER_ATTACK.keyLabel} 攻擊 · ${INVENTORY_CONFIG.keyLabel} 背包`,
-  touch: '左下角拖曳搖桿 或 輕觸地面 移動 · 右下角按鈕 攻擊 · 右上角 背包',
+  keyboard: `WASD / 方向鍵 或 點擊地面 移動 · ${PLAYER_ATTACK.keyLabel} 攻擊 · ${INVENTORY_CONFIG.keyLabel} 背包 · 走近物品拾取`,
+  touch: '左下角拖曳搖桿 或 輕觸地面 移動 · 右下角按鈕 攻擊 · 右上角 背包 · 走近物品拾取',
 };
 
 // HTML overlay for display only (no input): hint, player life, the current
-// target's life, a red edge flash when hurt and a death banner. Interactive
+// target's life, a red edge flash when hurt, a death banner and a short
+// pickup notice. Interactive
 // widgets (TouchJoystick, AttackButton, InventoryButton, InventoryPanel) are created by the UI owner (Game).
 // DOM is only written when a displayed value changes.
 export class Hud {
@@ -25,6 +28,10 @@ export class Hud {
     this.banner = el('div', 'hud-banner', parent);
     this.banner.dataset.testid = 'death-banner';
     this.banner.hidden = true;
+    this.notice = el('div', 'hud-notice', parent);
+    this.notice.dataset.testid = 'hud-notice';
+    this.notice.hidden = true;
+    this.noticeTimer = null;
 
     this.lastPlayerHp = null;
     this.lastTarget = undefined;
@@ -58,6 +65,25 @@ export class Hud {
     }
   }
 
+  // event: an ItemPickup event ({ type: 'picked' | 'blocked', item, reason }).
+  showPickup(event) {
+    const name = getItemDefinition(event.item.defId)?.name ?? '物品';
+    if (event.type === 'picked') this.showNotice(`拾取：${name}`, false);
+    else if (event.reason === PLACE_FAIL.noSpace) this.showNotice(`背包空間不足，${name} 留在地上`, true);
+    else this.showNotice(`無法拾取：${name}`, true);
+  }
+
+  showNotice(text, isError) {
+    clearTimeout(this.noticeTimer);
+    this.notice.textContent = text;
+    this.notice.classList.toggle('is-error', isError);
+    this.notice.hidden = false;
+    this.noticeTimer = setTimeout(() => {
+      this.noticeTimer = null;
+      this.notice.hidden = true;
+    }, GROUND_ITEM_CONFIG.noticeTime * 1000);
+  }
+
   flashHurt() {
     // Restart the CSS animation.
     this.vignette.classList.remove('is-active');
@@ -66,6 +92,8 @@ export class Hud {
   }
 
   dispose() {
+    clearTimeout(this.noticeTimer);
+    this.notice.remove();
     this.root.remove();
     this.vignette.remove();
     this.banner.remove();

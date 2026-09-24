@@ -11,12 +11,15 @@ import { AttackButton } from '../ui/AttackButton.js';
 import { InventoryButton } from '../ui/InventoryButton.js';
 import { InventoryPanel } from '../ui/InventoryPanel.js';
 import { Inventory } from '../items/Inventory.js';
+import { ItemPickup } from '../game/ItemPickup.js';
+import { GroundItemLabels } from '../ui/GroundItemLabels.js';
 import { PLAYER_ATTACK, INVENTORY_CONFIG } from '../config.js';
 
 const MAX_FRAME_DT = 0.1; // avoid huge steps after tab switches
 
 // Composition root and the single game loop.
-// Frame order: input (UI actions, move + actions) -> world update -> camera -> HUD -> render.
+// Frame order: input (UI actions, move + actions) -> world update -> item pickup
+// -> camera -> ground labels + HUD -> render.
 export class Game {
   constructor({ worldContainer, uiContainer }) {
     this.worldContainer = worldContainer;
@@ -39,6 +42,8 @@ export class Game {
       ]),
     );
 
+    // Created first so every other UI element draws above the ground labels.
+    this.groundLabels = new GroundItemLabels(uiContainer);
     this.hud = new Hud(uiContainer);
     this.joystick = new TouchJoystick(uiContainer);
     this.input.addMoveSource(this.joystick);
@@ -46,6 +51,11 @@ export class Game {
     this.inventory = new Inventory(INVENTORY_CONFIG);
     this.inventoryButton = new InventoryButton(uiContainer, this.input);
     this.inventoryPanel = new InventoryPanel(uiContainer, this.inventory, this.input);
+    // Ground -> bag. Paused while world input is blocked (bag open), like any
+    // other world interaction.
+    this.pickup = new ItemPickup(this.world.groundItems, this.inventory, {
+      isBlocked: () => this.input.isWorldBlocked(),
+    });
     this.setTouchMode(detectTouchPrimary());
 
     // Switch UI hints when the player actually uses a different device.
@@ -98,6 +108,7 @@ export class Game {
     if (w === 0 || h === 0) return;
     this.renderer.resize(w, h);
     this.cameraRig.resize(w / h);
+    this.groundLabels.resize(w, h);
   }
 
   onWorldPointer(e) {
@@ -129,7 +140,10 @@ export class Game {
     if (this.input.consumeAction('attack')) this.world.playerAttack();
     this.input.endFrame();
     this.world.update(dt);
+    for (const event of this.pickup.update(player)) this.hud.showPickup(event);
     this.cameraRig.follow(player.position, dt);
+    this.cameraRig.camera.updateMatrixWorld(); // labels project with this frame's camera
+    this.groundLabels.update(this.world.groundItems.entries, this.cameraRig.camera, player.position);
     this.attackButton.setCooldown(player.attackCooldown / player.attack.interval);
     this.hud.update(
       player,
@@ -152,7 +166,9 @@ export class Game {
     this.attackButton.dispose();
     this.inventoryButton.dispose();
     this.inventoryPanel.dispose();
+    this.pickup.dispose();
     this.inventory.dispose();
+    this.groundLabels.dispose();
     this.hud.dispose();
     this.world.dispose();
     this.renderer.dispose();

@@ -1,14 +1,21 @@
 import * as THREE from 'three';
-import { WORLD_CONFIG, ENEMY_TYPES, ENEMY_SPAWNS, FX_CONFIG } from '../config.js';
+import { WORLD_CONFIG, ENEMY_TYPES, ENEMY_SPAWNS, FX_CONFIG, LOOT_TABLES } from '../config.js';
 import { Player } from './Player.js';
 import { Enemy } from './Enemy.js';
 import { Effects } from './Effects.js';
+import { GroundItems } from './GroundItems.js';
 import { nearestFreePoint } from './collision.js';
+import { rollLoot } from '../items/loot.js';
 
 // The game scene: environment + entities. Rendering and input live elsewhere.
+// Enemy deaths drop loot onto the ground (groundItems); picking it up into the
+// bag is a separate system (ItemPickup) owned by Game.
+// rng: () => [0, 1), injectable so loot rolls are reproducible in tests.
 export class World {
-  constructor(config = WORLD_CONFIG, spawns = ENEMY_SPAWNS) {
+  constructor(config = WORLD_CONFIG, spawns = ENEMY_SPAWNS, { rng = Math.random, lootTables = LOOT_TABLES } = {}) {
     this.config = config;
+    this.rng = rng;
+    this.lootTables = lootTables;
     this.colliders = []; // static circle colliders {x, z, radius} on the X/Z plane
     this.raycaster = new THREE.Raycaster();
     this.scene = new THREE.Scene();
@@ -23,6 +30,7 @@ export class World {
     this.playerSpawn = { x: 0, z: 0 };
 
     this.effects = new Effects(this.scene);
+    this.groundItems = new GroundItems(this.scene);
     this.enemies = [];
     this.focusEnemy = null; // last enemy the player fought, shown in the HUD
     this.bodyColliders = []; // scratch list: rocks + moving bodies, rebuilt per mover
@@ -45,6 +53,20 @@ export class World {
     if (i >= 0) this.enemies.splice(i, 1);
     if (this.focusEnemy === enemy) this.focusEnemy = null;
     enemy.dispose();
+  }
+
+  // Rolls the enemy's loot table once and puts the drops on the ground around
+  // the corpse. Returns the ground entries created.
+  dropLoot(enemy) {
+    const items = rollLoot(this.lootTables[enemy.type.lootTable], this.rng);
+    if (items.length === 0) return [];
+    const origin = { x: enemy.position.x, z: enemy.position.z };
+    const startAngle = this.rng() * Math.PI * 2;
+    return items.map((item, i) => {
+      const angle = startAngle + (i * Math.PI * 2) / items.length;
+      const at = this.groundItems.findLandingSpot(origin, angle, this.colliders, this.config.playBounds);
+      return this.groundItems.add(item, at, origin);
+    });
   }
 
   // Static rocks plus every living body except `self`, for circle collision.
@@ -154,6 +176,8 @@ export class World {
         this.focusEnemy = enemy;
         this.effects.spawnSpark(player.position, FX_CONFIG.playerHitColor);
       }
+      // Before updateSpawns, so even a corpse removed this frame drops once.
+      if (enemy.claimLoot()) this.dropLoot(enemy);
     }
     this.updateSpawns(dt);
 
@@ -161,6 +185,7 @@ export class World {
       player.revive(nearestFreePoint(this.playerSpawn, player.radius, this.collidersFor(player), bounds));
     }
     this.effects.update(dt);
+    this.groundItems.update(dt, player.dead ? null : player.position);
 
     // Keep the shadow frustum centered on the player.
     const p = this.player.position;
@@ -186,6 +211,7 @@ export class World {
 
   dispose() {
     this.effects.dispose();
+    this.groundItems.dispose();
     this.enemies.slice().forEach((e) => this.removeEnemy(e));
     const geometries = new Set();
     const materials = new Set();

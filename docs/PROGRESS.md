@@ -85,3 +85,27 @@
   - 背包開啟時遊戲不暫停：敵人仍會移動與攻擊，已設定的點擊移動目標會繼續走完。
   - 範例物品來自測試 fixture，每次重新整理都會重新產生（沒有持久化）。
   - 仍未在實體手機上測試。
+
+## Part 04 — 敵人掉落、地面物品與格子背包拾取
+
+- 分支：`feature/bootstrap-threejs-arpg`（基於 Part 03 `462fe30`）
+- 完成：
+  - 掉落規則（`config.js`）：`LOOT_TABLES.shaleStalker` — `dropChance` 0.7、每次掉落 `minDrops`–`maxDrops` = 1–2 件（均勻）、7 種現有原創裝備依權重抽選（指環 14、束帶 12、墜飾 10、短劍 10、鉚釘盔 9、圓盾 9、背心 6）。`ENEMY_TYPES.*.lootTable` 指向表格。新增 `GROUND_ITEM_CONFIG`（拾取半徑 0.9、提示半徑 3.5、散落半徑、間距、標籤上限 12 等）與 `RARITY_COLORS`。
+  - `src/items/loot.js`：`rollLoot(table, rng)` 純函式，rng 可注入（抽取順序：機率 → 數量 → 每件權重）；每件以 `createItemInstance(def)` 產生獨立 uid，不修改共用定義；未知 defId 直接丟錯。
+  - 死亡只掉落一次：`Enemy.claimLoot()` 在死亡後第一次呼叫回傳 true，之後（倒地動畫、屍體計時、移除）都回傳 false；`World.update` 在 `updateSpawns` 之前呼叫，所以屍體移除的同一幀也不會漏掉或重複。重生是新的 `Enemy`，有自己的一次掉落。
+  - 地面物品 `src/game/GroundItems.js`（無 DOM、無 Inventory）：每個 entry 保存 ItemInstance（以 uid 識別）。程式生成外觀：依 footprint 大小與定義色調的平板、稀有度顏色地面環與細光柱、從屍體拋出的短動畫；靠近時環與光柱變亮。落點用 `nearestFreePoint` 避開石塊（留出玩家可站的空間）並盡量彼此保持間距。幾何共用，每件的 material 在移除時釋放。
+  - 拾取 `src/game/ItemPickup.js`：玩家（存活）進入拾取半徑即由近到遠呼叫 `inventory.addAnywhere()`；成功後才從地面移除，ItemInstance 物件、uid、data 不變。失敗（背包滿或沒有符合 footprint 的空位）時地面與背包都不變，只回報一次 `blocked`；在背包內容改變或玩家離開再回來之前不重試。背包開啟（`InputManager.isWorldBlocked()`）時暫停拾取，關閉後才繼續。
+  - 標籤 `src/ui/GroundItemLabels.js`：HTML overlay，最先建立所以在所有 UI 之下，容器與標籤皆 `pointer-events: none`（點擊／輕觸直接落到 world canvas，可點擊移動）。固定大小的元素池（最多 12 個），只給離玩家最近的物品；同一物品沿用同一元素，文字變更時才量測寬度；重疊時以較近物品優先、往上（超出畫面則往下）堆疊並限制在視窗內；只在位置／狀態改變時寫 DOM。
+  - HUD：新增不攔截輸入的短提示（`拾取：X`／`背包空間不足，X 留在地上`），計時器於 dispose 清除；操作提示加入「走近物品拾取」。
+  - 樣本物品：`main.js` 不再於啟動時填包，正式遊戲背包從空的開始。`fixtures.js` 保留給測試，並只在 DEV 以 `window.__game.debug.seedFixture()` 明確呼叫；fixture 仍標記 `data.fixture = true`，與掉落無關。
+- 變更檔案：`src/config.js`、`src/items/loot.js`（新）、`src/game/GroundItems.js`（新）、`src/game/ItemPickup.js`（新）、`src/ui/GroundItemLabels.js`（新）、`src/game/Enemy.js`、`src/game/World.js`、`src/core/Game.js`、`src/ui/Hud.js`、`src/styles.css`、`src/main.js`、`src/items/fixtures.js`、`tests/loot.test.js`（新）、`CLAUDE.md`（一行掉落流程不變條件）、`docs/PROGRESS.md`
+- 測試：
+  - `npm test`：61 項通過（新增 14 項：掉落表都指向現有定義；固定 RNG 下掉落／不掉落、數量與權重邊界；150 件掉落 uid 唯一、data 不共用、定義不變；`claimLoot` 只成立一次；World 擊殺後物品在屍體附近的地面而不在背包；不掉落結果地面為空；屍體計時、移除與重生不重複掉落，重生後的敵人另有一次；多件掉落避開石塊且互相保持間距；拾取半徑外保留、進入後以合法格子加入且 uid/data/佔格正確、地面模型移除且 material 釋放；背包滿時留在地面且背包序列化不變、提示不重複、離開再進入再提示、空出格子後拾取；有空格但放不下 2×3 時保留、1×1 仍可拾取；多件依距離各拾取一次；world 封鎖或玩家死亡時暫停；移除與 dispose 釋放資源）。
+  - `npm run build` 通過。
+  - Playwright + Chromium（dev server，腳本不入庫）48/48：桌機 1280×720：啟動背包為空；D 鍵移動；Space／J 擊殺；固定 rng 掉落 2 件在地面、不進背包、兩個名稱標籤不重疊且 pointer-events none；等待屍體移除後仍為 2 件；標籤位置的 elementFromPoint 為 canvas、點標籤會觸發 world pointer；點擊物品地面位置走過去自動拾取、標籤消失、提示「拾取：…」、背包面板以 uid 顯示；背包塞滿後走到物品上：提示背包空間不足、物品留在地上、背包序列化不變；開背包空出 (11,4) 時仍不拾取、點 world 被封鎖；關閉後放入 (11,4)；20 件地面物品只有 ≤12 個標籤元素且不重疊，移動時元素數維持上限；每隻敵人的掉落流程最多執行一次。iPhone 13 直向 390×664：啟動背包為空；攻擊按鈕擊殺；CDP 觸控拖曳搖桿走向物品後拾取；在攻擊按鈕、搖桿、背包按鈕下方放置標籤時控制項仍在最上層，輕觸攻擊有效且不產生 world pointer；背包滿時提示在視窗內、不與控制項重疊且 pointer-events none；標籤在視窗內；開背包後輕觸不進 world。橫向 844×390：標籤在視窗內、攻擊按鈕可點、輕觸標籤可點擊移動。三個 viewport 的 console 均無錯誤；截圖目視確認標籤可讀。
+- 已知問題：
+  - 同一處堆很多物品時，往上堆疊的標籤可能落在左上 HUD 底下（被 HUD 遮住，但不攔截 HUD 或控制項）；只顯示最近 12 個標籤。
+  - 只做走近自動拾取，沒有點標籤拾取或拾取過濾；背包滿時物品無限期留在地上，也沒有地面物品上限或清除機制。
+  - 掉落只使用定義的基礎稀有度（目前皆為 normal），沒有稀有度擲骰或詞綴。
+  - 背包開啟時遊戲仍在模擬，只有拾取暫停；地面物品與背包都沒有持久化，重新整理後消失。
+  - 仍未在實體手機上測試。

@@ -47,6 +47,7 @@ export const ENEMY_TYPES = {
     hurtFlashTime: 0.15,
     corpseTime: 2.5, // seconds a corpse stays before being removed
     respawnDelay: 6, // seconds after removal before the spawn point refills
+    lootTable: 'shaleStalker', // key into LOOT_TABLES
     bodyColor: 0x5e6b4a,
     accentColor: 0xa4552c,
     eyeColor: 0xffc84a,
@@ -59,6 +60,48 @@ export const ENEMY_SPAWNS = [
   { type: 'shaleStalker', x: 4, z: -10 },
   { type: 'shaleStalker', x: -10, z: -5 },
 ];
+
+// Drop rules, keyed by id (enemy types name theirs in `lootTable`). Each death
+// rolls once: with probability dropChance it drops minDrops..maxDrops items
+// (uniform), each picked by weight from `entries` (defIds in ITEM_DEFINITIONS).
+export const LOOT_TABLES = {
+  shaleStalker: {
+    dropChance: 0.7,
+    minDrops: 1,
+    maxDrops: 2,
+    entries: [
+      { defId: 'copperBandRing', weight: 14 },
+      { defId: 'riverstoneAmulet', weight: 10 },
+      { defId: 'hideStrapBelt', weight: 12 },
+      { defId: 'notchedShortsword', weight: 10 },
+      { defId: 'rivetCap', weight: 9 },
+      { defId: 'plankBuckler', weight: 9 },
+      { defId: 'quiltedVest', weight: 6 },
+    ],
+  },
+};
+
+// Items lying on the ground and their pickup.
+export const GROUND_ITEM_CONFIG = {
+  pickupRadius: 0.9, // player center to item center; walking this close picks it up
+  hintRadius: 3.5, // labels / markers light up inside this distance
+  scatterRadius: 0.9, // drops land this far from the death point
+  dropSpacing: 0.75, // try to keep drops at least this far apart
+  clearance: 0.45, // drops land where a circle this size fits (the player can reach them)
+  flightTime: 0.35, // seconds of the little toss from the corpse to the landing spot
+  cellSize: 0.26, // world units per inventory cell for the on-ground model
+  labelY: 0.75, // label anchor height above the ground
+  maxLabels: 12, // label elements are pooled; only the nearest this many are shown
+  labelGap: 3, // px between stacked labels
+  noticeTime: 1.8, // seconds a pickup / bag-full notice stays up
+};
+
+// Text / marker color per rarity. Unknown rarities fall back to normal.
+export const RARITY_COLORS = {
+  normal: '#e6e0d0',
+  magic: '#8fb0ff',
+  rare: '#f0d468',
+};
 
 export const FX_CONFIG = {
   slashTime: 0.2,

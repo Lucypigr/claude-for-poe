@@ -1,9 +1,9 @@
 import { getItemDefinition } from './itemDefinitions.js';
 import { createItemInstance } from './ItemInstance.js';
 
-// TEST FIXTURE — not a loot source. Pre-fills the bag so the grid UI can be
-// used before ground drops exist. Every fixture instance is tagged with
-// data.fixture = true. Remove once real drops can fill the bag.
+// TEST FIXTURE — not a loot source. Fills a bag with sample items for tests
+// and the dev-only `window.__game.debug.seedFixture()` tool; normal startup
+// never uses it. Every fixture instance is tagged with data.fixture = true.
 export const INVENTORY_FIXTURE = [
   { defId: 'quiltedVest', x: 0, y: 0 },
   { defId: 'rivetCap', x: 2, y: 0 },

@@ -32,6 +32,7 @@ export class Enemy {
     this.hurtTime = 0;
     this.lungeTime = 0;
     this.deadTime = 0;
+    this.lootClaimed = false;
     this.knockback = { x: 0, z: 0 };
     this.baseColors = this.materials.map((m) => m.color.clone());
   }
@@ -68,6 +69,15 @@ export class Enemy {
       this.healthBar.group.visible = false;
     }
     return dealt;
+  }
+
+  // True exactly once per death: the first call after dying claims this
+  // enemy's drop, later calls (death animation, corpse timer) return false.
+  // A respawn is a new Enemy, so it gets its own drop.
+  claimLoot() {
+    if (!this.dead || this.lootClaimed) return false;
+    this.lootClaimed = true;
+    return true;
   }
 
   // colliders: circle colliders to avoid (rocks, the player, other enemies).

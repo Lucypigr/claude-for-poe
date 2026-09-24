@@ -208,6 +208,67 @@ body {
   display: none;
 }
 
+/* Short pickup / bag-full notice. Display only, never blocks input. */
+.hud-notice {
+  position: absolute;
+  left: 50%;
+  top: calc(var(--safe-top) + 26%);
+  transform: translateX(-50%);
+  max-width: calc(100vw - var(--safe-left) - var(--safe-right) - 32px);
+  padding: 6px 14px;
+  border-radius: 6px;
+  background: rgba(12, 14, 20, 0.8);
+  border: 1px solid rgba(232, 226, 212, 0.25);
+  color: var(--ui-fg);
+  font-size: 14px;
+  text-align: center;
+  pointer-events: none;
+}
+
+.hud-notice.is-error {
+  color: #f3b0a0;
+  border-color: rgba(240, 120, 100, 0.55);
+}
+
+.hud-notice[hidden] {
+  display: none;
+}
+
+/* Ground item name tags, positioned by GroundItemLabels. Never interactive:
+   clicks / taps fall through to the world canvas. Drawn under all other UI. */
+.ground-labels {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.ground-label {
+  --label-color: #e6e0d0;
+  position: absolute;
+  left: 0;
+  top: 0;
+  padding: 2px 8px;
+  border-radius: 4px;
+  border: 1px solid rgba(232, 226, 212, 0.18);
+  background: rgba(8, 9, 12, 0.7);
+  color: var(--label-color);
+  font-size: 13px;
+  line-height: 18px;
+  white-space: nowrap;
+  pointer-events: none;
+  will-change: transform;
+}
+
+.ground-label.is-near {
+  border-color: var(--label-color);
+  background: rgba(24, 22, 16, 0.9);
+}
+
+.ground-label[hidden] {
+  display: none;
+}
+
 /* Attack button (touch devices only), bottom-right, away from the joystick. */
 .attack-button {
   --cooldown: 0;
