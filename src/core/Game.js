@@ -1,3 +1,4 @@
+import * as THREE from 'three';
 import { InputManager } from '../input/InputManager.js';
 import { KeyboardMoveSource } from '../input/KeyboardMoveSource.js';
 import { Renderer } from '../render/Renderer.js';
@@ -36,6 +37,12 @@ export class Game {
     this.resizeObserver.observe(worldContainer);
     this.resize();
 
+    // Click/tap on the world canvas = walk there. InputManager only forwards
+    // pointers that start on the canvas, so UI and joystick touches never land here.
+    this.pointerNdc = new THREE.Vector2();
+    this.groundHit = { x: 0, z: 0 };
+    this.offWorldPointer = this.input.onWorldPointer((e) => this.onWorldPointer(e));
+
     this.cameraRig.snapTo(this.world.player.position);
     this.moveDir = { x: 0, z: 0 };
     this.lastTime = null;
@@ -53,6 +60,19 @@ export class Game {
     if (w === 0 || h === 0) return;
     this.renderer.resize(w, h);
     this.cameraRig.resize(w / h);
+  }
+
+  onWorldPointer(e) {
+    if (e.button !== 0) return; // primary button / touch contact only
+    const rect = this.renderer.canvas.getBoundingClientRect();
+    if (rect.width === 0 || rect.height === 0) return;
+    this.pointerNdc.set(
+      ((e.clientX - rect.left) / rect.width) * 2 - 1,
+      -((e.clientY - rect.top) / rect.height) * 2 + 1,
+    );
+    if (this.world.pickGround(this.pointerNdc, this.cameraRig.camera, this.groundHit)) {
+      this.world.setPlayerMoveTarget(this.groundHit);
+    }
   }
 
   start() {
@@ -75,6 +95,7 @@ export class Game {
     window.removeEventListener('pointerdown', this.onAnyPointerDown, { capture: true });
     window.removeEventListener('keydown', this.onAnyKeyDown, { capture: true });
     this.resizeObserver.disconnect();
+    this.offWorldPointer();
     this.input.dispose();
     this.keyboard.dispose();
     this.joystick.dispose();

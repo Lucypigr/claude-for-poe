@@ -1,6 +1,6 @@
 const HINTS = {
-  keyboard: 'WASD / 方向鍵 移動',
-  touch: '左下角拖曳搖桿移動',
+  keyboard: 'WASD / 方向鍵 或 點擊地面 移動',
+  touch: '左下角拖曳搖桿 或 輕觸地面 移動',
 };
 
 // Minimal HTML overlay. Holds only display elements for now; interactive

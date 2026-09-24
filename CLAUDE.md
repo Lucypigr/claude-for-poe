@@ -16,7 +16,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `src/core/Game.js`：組合根與**唯一**遊戲迴圈（`renderer.setAnimationLoop`）。每幀順序：input → world update → camera → render。
 - `src/input/`：`InputManager` 是唯一的輸入擁有者。各 move source（鍵盤、觸控搖桿）只回報螢幕空間 axis（長度 ≤ 1），由 `InputManager.getMoveAxis()` 合併；world action 只接受 target 為 world canvas 的 pointer 事件（`onWorldPointer`）。
 - `src/render/`：`Renderer`（唯一的 WebGLRenderer）與 `CameraRig`（固定斜上方視角，只跟隨不旋轉；`screenAxisToWorld` 把螢幕方向轉成世界 X/Z）。
-- `src/game/`：`World`（場景、環境、實體）與 `Player`。玩家只能經由 `Player.setMoveDirection()` 操控，輸入裝置不得直接改玩家狀態。
+- `src/game/`：`World`（場景、環境、實體、靜態碰撞物 `colliders`、地面拾取 `pickGround`）與 `Player`。玩家只能經由 `Player.setMoveDirection()`（直接輸入）與 `setMoveTarget()`（點擊移動）操控；非零直接輸入會清除移動目標。輸入裝置不得直接改玩家狀態。碰撞為 X/Z 平面圓形推離（`collision.js`），不引入物理引擎。
 - `src/ui/`：HTML/CSS 疊層。`.ui-layer` 預設 `pointer-events: none`，只有 `.ui-interactive` 元素接收輸入且事件不會傳到 world canvas。
 - `src/config.js`：可調數值集中於此；系統從設定讀取，不寫死數字。
 - 所有模組提供 `dispose()`，移除監聽器並釋放 Three.js geometry/material/renderer；Vite HMR 時呼叫 `game.dispose()`。

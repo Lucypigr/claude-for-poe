@@ -6,6 +6,8 @@ import { Player } from './Player.js';
 export class World {
   constructor(config = WORLD_CONFIG) {
     this.config = config;
+    this.colliders = []; // static circle colliders {x, z, radius} on the X/Z plane
+    this.raycaster = new THREE.Raycaster();
     this.scene = new THREE.Scene();
     this.scene.fog = new THREE.Fog(0x0d0f14, 30, 70);
 
@@ -44,6 +46,7 @@ export class World {
     ground.rotation.x = -Math.PI / 2;
     ground.receiveShadow = true;
     this.scene.add(ground);
+    this.ground = ground;
 
     const grid = new THREE.GridHelper(size, size / 2, 0x55553f, 0x46463a);
     grid.position.y = 0.01;
@@ -68,11 +71,27 @@ export class World {
       rock.castShadow = true;
       rock.receiveShadow = true;
       this.scene.add(rock);
+      this.colliders.push({ x, z, radius: scale * this.config.rockColliderScale });
     }
   }
 
+  // ndc: pointer in normalized device coords. Writes the ground hit into
+  // `out` ({x, z}) and returns true, or returns false if the ground was missed.
+  pickGround(ndc, camera, out) {
+    this.raycaster.setFromCamera(ndc, camera);
+    const hit = this.raycaster.intersectObject(this.ground, false)[0];
+    if (!hit) return false;
+    out.x = hit.point.x;
+    out.z = hit.point.z;
+    return true;
+  }
+
+  setPlayerMoveTarget(point) {
+    this.player.setMoveTarget(point, this.colliders, this.config.playBounds);
+  }
+
   update(dt) {
-    this.player.update(dt, this.config.playBounds);
+    this.player.update(dt, this.config.playBounds, this.colliders);
     // Keep the shadow frustum centered on the player.
     const p = this.player.position;
     this.sun.position.set(p.x + 8, 16, p.z + 6);
