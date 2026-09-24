@@ -8,31 +8,44 @@ import { World } from '../game/World.js';
 import { Hud } from '../ui/Hud.js';
 import { TouchJoystick } from '../ui/TouchJoystick.js';
 import { AttackButton } from '../ui/AttackButton.js';
-import { PLAYER_ATTACK } from '../config.js';
+import { InventoryButton } from '../ui/InventoryButton.js';
+import { InventoryPanel } from '../ui/InventoryPanel.js';
+import { Inventory } from '../items/Inventory.js';
+import { PLAYER_ATTACK, INVENTORY_CONFIG } from '../config.js';
 
 const MAX_FRAME_DT = 0.1; // avoid huge steps after tab switches
 
 // Composition root and the single game loop.
-// Frame order: input (move + actions) -> world update -> camera -> HUD -> render.
+// Frame order: input (UI actions, move + actions) -> world update -> camera -> HUD -> render.
 export class Game {
   constructor({ worldContainer, uiContainer }) {
     this.worldContainer = worldContainer;
     this.renderer = new Renderer(worldContainer);
     this.cameraRig = new CameraRig();
     this.world = new World();
-    this.input = new InputManager({ worldElement: this.renderer.canvas });
+    this.input = new InputManager({
+      worldElement: this.renderer.canvas,
+      uiActions: ['toggleInventory', 'closeInventory'],
+    });
 
     this.keyboard = new KeyboardMoveSource();
     this.input.addMoveSource(this.keyboard);
     this.keyboardActions = new KeyboardActionSource(
       this.input,
-      Object.fromEntries(PLAYER_ATTACK.keys.map((code) => [code, 'attack'])),
+      Object.fromEntries([
+        ...PLAYER_ATTACK.keys.map((code) => [code, 'attack']),
+        ...INVENTORY_CONFIG.toggleKeys.map((code) => [code, 'toggleInventory']),
+        ...INVENTORY_CONFIG.closeKeys.map((code) => [code, 'closeInventory']),
+      ]),
     );
 
     this.hud = new Hud(uiContainer);
     this.joystick = new TouchJoystick(uiContainer);
     this.input.addMoveSource(this.joystick);
     this.attackButton = new AttackButton(uiContainer, this.input);
+    this.inventory = new Inventory(INVENTORY_CONFIG);
+    this.inventoryButton = new InventoryButton(uiContainer, this.input);
+    this.inventoryPanel = new InventoryPanel(uiContainer, this.inventory, this.input);
     this.setTouchMode(detectTouchPrimary());
 
     // Switch UI hints when the player actually uses a different device.
@@ -59,9 +72,25 @@ export class Game {
   setTouchMode(touch) {
     if (this.touchMode === touch) return;
     this.touchMode = touch;
-    this.joystick.setVisible(touch);
-    this.attackButton.setVisible(touch);
     this.hud.setInputMode(touch ? 'touch' : 'keyboard');
+    this.inventoryPanel.setInputMode(touch ? 'touch' : 'keyboard');
+    this.updateTouchControls();
+  }
+
+  // On-screen gameplay controls only show in touch mode with no panel open.
+  updateTouchControls() {
+    const show = this.touchMode && !this.inventoryPanel.isOpen();
+    this.joystick.setVisible(show);
+    this.attackButton.setVisible(show);
+  }
+
+  // The open bag blocks world input in InputManager (no move, world pointer
+  // or attack) until it closes.
+  setInventoryOpen(open) {
+    this.inventoryPanel.setOpen(open);
+    this.inventoryButton.setOpen(open);
+    this.input.setWorldBlocked('inventory', open);
+    this.updateTouchControls();
   }
 
   resize() {
@@ -92,6 +121,8 @@ export class Game {
     const dt = this.lastTime === null ? 0 : Math.min((timeMs - this.lastTime) / 1000, MAX_FRAME_DT);
     this.lastTime = timeMs;
 
+    if (this.input.consumeAction('toggleInventory')) this.setInventoryOpen(!this.inventoryPanel.isOpen());
+    if (this.input.consumeAction('closeInventory')) this.setInventoryOpen(false);
     this.cameraRig.screenAxisToWorld(this.input.getMoveAxis(), this.moveDir);
     const player = this.world.player;
     player.setMoveDirection(this.moveDir);
@@ -119,6 +150,9 @@ export class Game {
     this.keyboardActions.dispose();
     this.joystick.dispose();
     this.attackButton.dispose();
+    this.inventoryButton.dispose();
+    this.inventoryPanel.dispose();
+    this.inventory.dispose();
     this.hud.dispose();
     this.world.dispose();
     this.renderer.dispose();

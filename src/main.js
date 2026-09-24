@@ -1,9 +1,13 @@
 import { Game } from './core/Game.js';
+import { seedInventoryFixture } from './items/fixtures.js';
 
 const game = new Game({
   worldContainer: document.getElementById('world'),
   uiContainer: document.getElementById('ui'),
 });
+// TEST FIXTURE: there are no drops yet, so the bag starts with tagged sample
+// items (data.fixture = true) to exercise the grid UI.
+seedInventoryFixture(game.inventory);
 game.start();
 
 if (import.meta.env.DEV) {

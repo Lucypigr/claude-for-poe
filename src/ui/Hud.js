@@ -1,13 +1,13 @@
-import { PLAYER_ATTACK } from '../config.js';
+import { PLAYER_ATTACK, INVENTORY_CONFIG } from '../config.js';
 
 const HINTS = {
-  keyboard: `WASD / 方向鍵 或 點擊地面 移動 · ${PLAYER_ATTACK.keyLabel} 攻擊`,
-  touch: '左下角拖曳搖桿 或 輕觸地面 移動 · 右下角按鈕 攻擊',
+  keyboard: `WASD / 方向鍵 或 點擊地面 移動 · ${PLAYER_ATTACK.keyLabel} 攻擊 · ${INVENTORY_CONFIG.keyLabel} 背包`,
+  touch: '左下角拖曳搖桿 或 輕觸地面 移動 · 右下角按鈕 攻擊 · 右上角 背包',
 };
 
 // HTML overlay for display only (no input): hint, player life, the current
 // target's life, a red edge flash when hurt and a death banner. Interactive
-// widgets (TouchJoystick, AttackButton) are created by the UI owner (Game).
+// widgets (TouchJoystick, AttackButton, InventoryButton, InventoryPanel) are created by the UI owner (Game).
 // DOM is only written when a displayed value changes.
 export class Hud {
   constructor(parent) {

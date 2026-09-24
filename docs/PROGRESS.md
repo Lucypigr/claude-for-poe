@@ -61,3 +61,27 @@
   - console 的既有警告：Three.js r186 已移除 `PCFSoftShadowMap`，會自動改用 `PCFShadowMap`（Part 00 的 Renderer 設定，不在本 Part 範圍內）。
   - 敵人碰撞會把玩家當成障礙物，玩家也會被存活敵人擋住；被包圍時需要攻擊開路。
   - 仍未在實體手機上測試。
+
+## Part 03 — 物品實例與 12×5 格子背包
+
+- 分支：`feature/bootstrap-threejs-arpg`（基於 Part 02 `d385160`）
+- 完成：
+  - 資料層 `src/items/`（無 DOM，可在 Node 測試）：
+    - `ITEM_DEFINITIONS`（深度凍結）：`id`、`name`、`category`、`rarity`（基礎稀有度）、`width`／`height`（格數）、`icon`（字形＋色調的程式化暫代外觀）。原創範例：1×1 銅紋指環／河石墜飾、2×1 獸皮束帶、1×3 缺口短劍、2×2 鉚釘盔／木板圓盾、2×3 縫綴背心。
+    - `ItemInstance`：`{ uid, defId, gridX, gridY, data }`。`uid` 由 `crypto.getRandomValues` 產生（區網 http 開發伺服器也能用），尺寸與外觀只從定義讀取；`data` 為深拷貝的 JSON 資料，保留給稀有度覆寫、詞綴、孔洞／連線等後續系統；不在格子內時 `gridX/gridY` 為 `null`（供之後的地面掉落與裝備槽使用）。
+    - `Inventory`（`INVENTORY_CONFIG` 12×5）：`cells` 陣列記錄每格的 uid。`checkPlacement`／`canPlace` 檢查整數座標、邊界與佔位衝突（回傳 `blockers`）；`add`、`addAnywhere`（直欄優先找空位，供之後拾取）、`move`（可與自己舊位置重疊，不交換）、`remove` 都回傳 `{ ok, reason, ... }`，失敗時背包與物品完全不變。`serialize()` 產生含 `version`、uid、位置、尺寸與 data 的 JSON；`restore()` 先在暫存背包驗證整份快照（未知定義、尺寸不符、重疊、重複 uid、越界都拒絕），成功才替換。未新增 SaveSystem。
+    - `fixtures.js`：明確標示的**測試 fixture**，`main.js` 啟動時放入 8 件範例物品（`data.fixture = true`），只為了在尚無掉落時操作 UI，不是掉落來源。
+  - 輸入：`InputManager` 新增 `uiActions` 與 `setWorldBlocked(key, blocked)`／`isWorldBlocked()`。封鎖時 move axis 回傳 0、world pointer 丟棄、非 UI 動作的 `triggerAction` 忽略且開啟當下已排隊的攻擊被清除；`toggleInventory`／`closeInventory` 照常通過。`KeyboardActionSource` 綁定 `I` → `toggleInventory`、`Esc` → `closeInventory`；觸控按鈕同樣只呼叫 `triggerAction`，由 `Game.frame` 消費後 `setInventoryOpen()`。
+  - UI（`InventoryButton`、`InventoryPanel`，HTML/CSS overlay）：右上 56px 背包按鈕（所有裝置顯示）；面板置中，格子大小依視窗寬高自動計算（桌機 52px、iPhone 直向 29px、橫向 48px）；每件物品是一張以百分比定位、跨越整個 footprint 的卡片；拖曳時顯示跟隨指標的 ghost 與綠色／紅色 footprint 預覽，放開後呼叫 `inventory.move()`，失敗時顯示「超出背包範圍／位置已被其他物品佔用」並留在原位（畫面一律依 model 重繪）；另有點選→點空格放置（觸控與滑鼠皆可），再點一次取消選取；滑鼠 hover 顯示名稱、類別、尺寸 tooltip；觸控時選取資訊顯示在底部。背包開啟時隱藏搖桿與攻擊按鈕；格子 `touch-action: none`、面板 `overscroll-behavior: contain`，並取消 contextmenu。關閉按鈕 44px。
+  - HUD 提示加入背包操作。
+- 變更檔案：`src/items/itemDefinitions.js`（新）、`src/items/ItemInstance.js`（新）、`src/items/Inventory.js`（新）、`src/items/fixtures.js`（新）、`src/ui/InventoryPanel.js`（新）、`src/ui/InventoryButton.js`（新）、`src/input/InputManager.js`、`src/core/Game.js`、`src/config.js`、`src/main.js`、`src/ui/Hud.js`、`src/styles.css`、`tests/inventory.test.js`（新）、`tests/inputActions.test.js`、`CLAUDE.md`（補上 action queue／world 封鎖輸入規則與 `src/items/` 架構）、`docs/PROGRESS.md`
+- 測試：
+  - `npm test`：47 項通過（新增 15 項：60 格空背包、定義凍結且含 1×1/2×2/2×3、uid 唯一且 instance data 不共用、1×1 與多格合法放置並佔滿 footprint、越界／非整數／重疊放置失敗且不改變狀態、重複 uid／未知定義、無效移動後位置與 cells 不變且不發 change、合法移動釋放舊格佔用新格、同定義不同 instance 分別移動、addAnywhere 與背包已滿、remove 保留 uid/data、JSON 序列化還原保留 uid/位置/尺寸/data、壞快照被拒且原內容保留、fixture 標記；InputManager 封鎖時移動歸零、world pointer 與攻擊被丟棄、UI 動作通過、解除後恢復）。
+  - `npm run build` 通過。
+  - Playwright + Chromium（dev server，腳本不入庫）42/42：桌機 1280×720：初始關閉、I 開啟並封鎖、60 格＋8 張卡片、2×3 卡片尺寸正確、hover tooltip、滑鼠拖曳有效預覽＋ghost 並移到 (8,1)、拖到其他物品上紅色預覽且兩件都不動並顯示訊息、拖出邊界無效、佔用格數一致、點選＋點格只移動該 instance、開啟時 Space 不攻擊／D 不移動／點 world 不計數、Esc 關閉後攻擊恢復、背包按鈕與關閉按鈕都不進入 world、關閉再開位置保留。iPhone 13 直向 390×664：按鈕 ≥44px 且不與 HUD 重疊、輕觸開啟、搖桿與攻擊按鈕隱藏、面板在視窗內、觸控拖曳有效（移動）與無效（留原位）、輕觸選取＋輕觸放置、越界與重疊的輕觸放置被拒、再輕觸取消選取、背包操作與輕觸 world／原搖桿與攻擊區域都不產生 world pointer、攻擊或移動；旋轉為 844×390 後面板完整、格子正方、位置正確且可觸控拖曳；轉回直向正常；關閉後控制項恢復且攻擊可用。兩個 context 的 console 均無錯誤。
+- 已知問題：
+  - iPhone 直向每格約 29px，小於 44px 建議觸控尺寸（12 欄受螢幕寬度限制）；以拖曳預覽與點選放置補償，橫向為 48px。
+  - 不支援物品互換（拖到其他物品上一律失敗）與旋轉。
+  - 背包開啟時遊戲不暫停：敵人仍會移動與攻擊，已設定的點擊移動目標會繼續走完。
+  - 範例物品來自測試 fixture，每次重新整理都會重新產生（沒有持久化）。
+  - 仍未在實體手機上測試。

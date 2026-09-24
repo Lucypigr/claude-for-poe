@@ -62,7 +62,7 @@ body {
   position: absolute;
   top: calc(var(--safe-top) + 12px);
   left: calc(var(--safe-left) + 12px);
-  right: calc(var(--safe-right) + 12px);
+  right: calc(var(--safe-right) + 80px); /* clear of the bag button */
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -238,4 +238,198 @@ body {
 .attack-button.is-pressed {
   transform: scale(0.92);
   border-color: rgba(255, 240, 200, 0.95);
+}
+
+/* Bag button, top-right. Shown on every device (click or tap). */
+.inventory-toggle {
+  position: absolute;
+  top: calc(var(--safe-top) + 12px);
+  right: calc(var(--safe-right) + 12px);
+  width: 56px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  background: var(--ui-panel);
+  border: 2px solid rgba(232, 226, 212, 0.4);
+  color: var(--ui-fg);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.inventory-toggle.is-open {
+  border-color: rgba(240, 200, 120, 0.9);
+  background: rgba(60, 44, 20, 0.8);
+}
+
+/* Bag panel. Cell size fits 12 columns into the viewport width and the
+   5 rows into what is left of the height after header + footer. */
+.inventory-panel {
+  --cell: min(
+    52px,
+    calc((100vw - var(--safe-left) - var(--safe-right) - 44px) / 12),
+    calc((100dvh - var(--safe-top) - var(--safe-bottom) - 152px) / 5)
+  );
+  position: absolute;
+  left: 50%;
+  top: calc(var(--safe-top) + (100dvh - var(--safe-top) - var(--safe-bottom)) / 2);
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 10px 10px;
+  border-radius: 10px;
+  background: rgba(16, 18, 26, 0.94);
+  border: 1px solid rgba(232, 226, 212, 0.25);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6);
+  overscroll-behavior: contain;
+  z-index: 10;
+}
+
+.inventory-panel[hidden] {
+  display: none;
+}
+
+.inventory-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.inventory-title {
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+}
+
+.inventory-close {
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: rgba(232, 226, 212, 0.08);
+  font-size: 20px;
+}
+
+.inventory-grid {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(var(--cols), var(--cell));
+  grid-template-rows: repeat(var(--rows), var(--cell));
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(232, 226, 212, 0.18);
+  touch-action: none; /* drags must not pan / zoom the page */
+}
+
+.inventory-cell {
+  border: 1px solid rgba(232, 226, 212, 0.07);
+}
+
+.inventory-layer {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.inventory-item {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+  border: 2px solid rgba(232, 226, 212, 0.35);
+  border-radius: 4px;
+  background: linear-gradient(160deg, var(--item-color), rgba(20, 20, 26, 0.9));
+  color: #f4efe2;
+  overflow: hidden;
+}
+
+.inventory-item-glyph {
+  font-size: calc(var(--cell) * 0.5);
+  line-height: 1;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
+}
+
+.inventory-item-name {
+  margin-top: 4px;
+  font-size: min(12px, calc(var(--cell) * 0.3));
+  text-align: center;
+  line-height: 1.1;
+}
+
+.inventory-item.is-selected {
+  border-color: rgba(250, 210, 120, 1);
+  box-shadow: inset 0 0 0 1px rgba(250, 210, 120, 0.6);
+}
+
+.inventory-item.is-dragging {
+  opacity: 0.35;
+}
+
+.inventory-ghost {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 2;
+  opacity: 0.85;
+  pointer-events: none;
+}
+
+.inventory-preview {
+  position: absolute;
+  border: 2px dashed transparent;
+  border-radius: 4px;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.inventory-preview[hidden] {
+  display: none;
+}
+
+.inventory-preview.is-valid {
+  border-color: rgba(120, 220, 120, 0.95);
+  background: rgba(80, 200, 90, 0.25);
+}
+
+.inventory-preview.is-invalid {
+  border-color: rgba(240, 90, 80, 0.95);
+  background: rgba(230, 60, 50, 0.3);
+}
+
+.inventory-info {
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+  padding: 0 4px;
+  max-width: calc(var(--cell) * 12);
+  color: var(--ui-muted);
+  font-size: 13px;
+  line-height: 1.3;
+}
+
+.inventory-info.is-error {
+  color: #f09a8a;
+}
+
+.inventory-tooltip {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 3;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: rgba(8, 9, 12, 0.95);
+  border: 1px solid rgba(232, 226, 212, 0.3);
+  font-size: 13px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.inventory-tooltip[hidden] {
+  display: none;
 }

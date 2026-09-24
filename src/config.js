@@ -73,6 +73,17 @@ export const FX_CONFIG = {
   healthBarY: 1.55,
 };
 
+// Grid bag. Item sizes come from ITEM_DEFINITIONS (src/items/itemDefinitions.js).
+export const INVENTORY_CONFIG = {
+  cols: 12,
+  rows: 5,
+  toggleKeys: ['KeyI'], // KeyboardEvent.code, open / close
+  closeKeys: ['Escape'],
+  keyLabel: 'I',
+  dragThreshold: 6, // px a pointer must travel before a press becomes a drag
+  messageTime: 1.6, // seconds a "cannot place" message stays up
+};
+
 export const CAMERA_CONFIG = {
   distance: 20,
   pitchDeg: 55, // angle above the ground plane

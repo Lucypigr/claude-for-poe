@@ -72,3 +72,35 @@ test('dispose removes listeners', () => {
   keys.dispatchEvent(key('keydown', 'KeyJ'));
   assert.equal(input.consumeAction('attack'), false);
 });
+
+test('blocking world input zeroes movement, drops world pointers and gameplay actions', () => {
+  const canvas = new EventTarget();
+  const input = new InputManager({ worldElement: canvas, uiActions: ['toggleInventory'] });
+  input.addMoveSource({ getAxis: () => ({ x: 1, y: 0 }) });
+  let worldPointers = 0;
+  input.onWorldPointer(() => worldPointers++);
+  const pointer = () => {
+    const e = new Event('pointerdown');
+    Object.defineProperty(e, 'target', { value: canvas });
+    return e;
+  };
+
+  input.triggerAction('attack'); // pressed in the same frame the panel opens
+  input.setWorldBlocked('inventory', true);
+  assert.equal(input.isWorldBlocked(), true);
+  assert.deepEqual(input.getMoveAxis(), { x: 0, y: 0 });
+  assert.equal(input.consumeAction('attack'), false);
+  input.triggerAction('attack');
+  assert.equal(input.consumeAction('attack'), false);
+  canvas.dispatchEvent(pointer());
+  assert.equal(worldPointers, 0);
+  input.triggerAction('toggleInventory'); // UI actions still pass
+  assert.equal(input.consumeAction('toggleInventory'), true);
+
+  input.setWorldBlocked('inventory', false);
+  assert.deepEqual(input.getMoveAxis(), { x: 1, y: 0 });
+  input.triggerAction('attack');
+  assert.equal(input.consumeAction('attack'), true);
+  canvas.dispatchEvent(pointer());
+  assert.equal(worldPointers, 1);
+});
