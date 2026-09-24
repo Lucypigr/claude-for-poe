@@ -7,9 +7,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## 指令
 - `npm install` — 安裝依賴（Node >= 20.19）
 - `npm run dev` — Vite 開發伺服器（`host: true`，同網段手機可連線）
-- `npm run build` / `npm run preview` — 建置 `dist/` 並預覽
+- `npm run build` / `npm run preview` — 建置 `dist/` 並預覽（GitHub Pages，`base: './'`）
+- `npm run build:cloudflare` / `npm run preview:cloudflare` — Cloudflare Pages 建置（`--mode cloudflare`，`base: '/'`）；base 只由 `vite.config.js` 的 `DEPLOY_BASES` 依 mode 決定
 - `npm test` — Node 內建 test runner，執行 `tests/**/*.test.js`；單一檔案：`node --test tests/moveAxis.test.js`
 - 部署：push 到 `main` 觸發 `.github/workflows/deploy-pages.yml`，測試＋建置後發布到 GitHub Pages（https://lucypigr.github.io/claude-for-poe/）。
+- 分支預覽：Cloudflare Pages GitHub App（production branch `main`），設定與網址規則見 `docs/DEPLOYMENT.md`。
 - 開發模式下 `window.__game` 提供除錯用的 `game` 與 `debug` 物件（僅 DEV）。
 
 ## 架構
@@ -31,6 +33,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - 每個 Part 限定一個可獨立測試與提交的交付目標。
 - 不得直接提交到 main；在功能分支開發，測試通過後才為完成的 Part 建立一個 commit。
 - 完成的 Part 推送到功能分支並開 PR 到 `main`，合併後 GitHub Pages 自動更新；除此之外未經使用者允許不得 push。
+- 每個完成的網頁版遊戲任務都要 commit 並 push 到使用者指定的功能分支；不得自行 push 或 merge 到 `main`。
+- push 後等待該分支 Cloudflare Pages preview deployment 成功（commit 等於 HEAD），實際開啟網址確認可載入，再把網址與部署狀態放進最終回報。部署未成功或無法取得確切網址時明確回報阻礙；禁止猜測或捏造 URL。
 - 不複製 POE 原始碼、專有素材、角色、UI、美術、音效或完整文字；使用原創名稱與內容。
 - 問題類任務先研究 codebase 再回答；程式碼風格、命名與註解密度與周圍既有程式碼一致。
 - 不覆蓋或刪除 repository 內既有的有效指示；修改前先檢查目標內容。

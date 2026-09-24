@@ -109,3 +109,21 @@
   - 掉落只使用定義的基礎稀有度（目前皆為 normal），沒有稀有度擲骰或詞綴。
   - 背包開啟時遊戲仍在模擬，只有拾取暫停；地面物品與背包都沒有持久化，重新整理後消失。
   - 仍未在實體手機上測試。
+
+## Part 05 — Cloudflare Pages 分支預覽部署
+
+- 分支：`feature/bootstrap-threejs-arpg`（基於 Part 04 `de31979`）
+- 完成：
+  - `vite.config.js` 改為依 build mode 取 `DEPLOY_BASES`：預設（`npm run build`，GitHub Pages）維持 `./`；`npm run build:cloudflare`（`--mode cloudflare`）為 `/`。另加 `preview:cloudflare`。`.github/workflows/deploy-pages.yml` 未修改。
+  - `.node-version`（22）供 Cloudflare 建置環境使用。
+  - `docs/DEPLOYMENT.md`：兩個部署目標、Cloudflare Dashboard 一次性設定、branch alias 規則、確認部署成功的方法、已確認網址紀錄（目前皆未確認）。
+  - `CLAUDE.md`：build 指令、預覽部署指向文件，以及「push 到功能分支 → 等待預覽部署成功並驗證 → 回報網址；禁止捏造 URL、不得 push/merge main」規則。
+- 變更檔案：`vite.config.js`、`package.json`、`.node-version`（新）、`tests/buildConfig.test.js`（新）、`docs/DEPLOYMENT.md`（新）、`CLAUDE.md`、`docs/PROGRESS.md`
+- 測試：
+  - `npm test`：64 項通過（新增 3 項：預設 mode base `./`、cloudflare mode base `/`、未知 mode 回到 `./`）。
+  - `npm run build`：輸出與修改前逐位元相同（`diff -r`），引用 `./assets/...`。
+  - `npm run build:cloudflare`：輸出 `dist/`，引用 `/assets/...`。
+  - Playwright + Chromium（靜態伺服器，腳本不入庫）：GitHub Pages build 放在 `/claude-for-poe/` 子路徑、Cloudflare build 放在根路徑，兩者 JS/CSS 皆 200、canvas 出現、console 無錯誤、畫面正常。
+- 已知問題：
+  - Cloudflare Pages 專案尚未建立（需使用者在 Dashboard 完成 GitHub App 授權），因此沒有線上 preview deployment，預覽網址尚未確認。
+  - 本雲端環境的網路政策擋住 `*.pages.dev` 與 `developers.cloudflare.com`；要讓 Claude 驗證預覽網址，需在環境 Network access 允許 `*.pages.dev`。
